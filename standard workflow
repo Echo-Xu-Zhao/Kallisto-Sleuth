@@ -1,0 +1,13 @@
+Building an index (from Gencode) #can set k-mer augment
+kallisto index -i trans_index.idx gencode.vM23.transcripts.fa.gz
+Quantification
+kallisto quant -t 4 --bias -b 100 -i /media/xuzhao/XU_harddisk/RNA_seq/Kallisto_Sleuth/gencode_index/trans_index.idx -o WT_1 /media/xuzhao/XU_harddisk/RNA_seq/trimomatic/WT_1_1p_qtrim.fq.gz /media/xuzhao/XU_harddisk/RNA_seq/trimomatic/WT_1_2p_qtrim.fq.gz
+
+Other functions:
+##create Txt file (bootstrap abundance) 100 files, no need to do this step.
+##the abundance matrix can be obtained in sleuth
+kallisto h5dump -o /media/xuzhao/XU_harddisk/RNA_seq/Kallisto_Sleuth/quantification/normal/Ctrl_1 abundance.h5
+
+## GenomeBam file
+run with the quantification step, also bam file is sorted automatically, must provide chromosome size txt file. Read manual
+--genomebam --gtf /media/xuzhao/XU_harddisk/RNA_seq/Kallisto_Sleuth/gencode_index/gencode.vM23.annotation.gtf.gz
