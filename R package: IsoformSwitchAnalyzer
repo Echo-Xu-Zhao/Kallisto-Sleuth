@@ -1,0 +1,75 @@
+library(IsoformSwitchAnalyzeR)
+
+### Step (1) Import data and create SwitchAnalyzeRlist
+
+Mydata <- importIsoformExpression(parentDir = "D:/RNA_seq/genome/Xu_kallisto/h2o2")
+
+names(Mydata)
+
+head(Mydata$abundance, 10)
+
+
+# Make design matrix
+myDesign <- data.frame(
+  sampleID = colnames(Mydata$abundance)[-1],
+  condition = gsub('_.*', '', colnames(Mydata$abundance)[-1]) # subfolders must be named like this "WT_1"
+)
+
+head(myDesign)
+
+# Create switchAnalyzeRlist
+mySwitchList <- importRdata(
+  isoformCountMatrix   = Mydata$counts,
+  isoformRepExpression = Mydata$abundance,
+  designMatrix         = myDesign,
+  isoformExonAnnoation = ("D:/RNA_seq/genome/stringtie/ballgown/Mus_musculus.GRCm38.97.chr_patch_hapl_scaff.gtf.gz"), # removeNonConvensionalChr=TRUE,
+  isoformNtFasta       = ("D:/RNA_seq/genome/stringtie/ballgown/Mus_musculus.GRCm38.cdna.all.fa.gz"),
+  showProgress = TRUE
+)
+
+mySwitchList
+
+
+### Step (2) Prefilter, Remove lowly expressed
+mySwitchList1 <- preFilter( mySwitchList )
+
+### Step (3) Identify differentially used isoforms
+mySwitchList2 <- isoformSwitchTestDEXSeq(  mySwitchList1) # ,dIFcutoff= 0.3,default is 0.1; onlySigIsoforms=TRUE
+
+### Step (4) Analyze alternative splicing
+mySwitchList3 <- analyzeAlternativeSplicing( mySwitchList2 )
+# table(mySwitchList3$AlternativeSplicingAnalysis$IR) #can also check other splicing events
+
+### Step (5) Global splicing analysis
+extractSplicingSummary( mySwitchList3, returnResult =TRUE ) #alpha = 0.05, dIFcutoff = 0.1, onlySigIsoforms = FALSE
+extractSplicingEnrichment( mySwitchList3, countGenes= TRUE ) #if count isoform, countGenes=FALSE,
+extractSplicingEnrichmentComparison( mySwitchList3 ) # should be more than three conditions
+extractSplicingGenomeWide( mySwitchList3 )
+
+### Volcano like plot:
+ggplot(data=mySwitchList3$isoformFeatures, aes(x=dIF, y=-log10(isoform_switch_q_value))) +
+  geom_point(
+    aes( color=abs(dIF) > 0.1 & isoform_switch_q_value < 0.05),
+    size=1
+  ) +
+  geom_hline(yintercept = -log10(0.05), col = "blue", lty = 2, lwd = 1) + # default cutoff
+  geom_vline(xintercept = c(-0.1, 0.1), col = "blue", lty = 2, lwd = 1) + # default cutoff
+  facet_wrap( ~ condition_1) +
+  #facet_grid(condition_1 ~ condition_2) + # alternative to facet_wrap if you have overlapping conditions
+  scale_color_manual('Signficant\nIsoform Switch', values = c('black','red')) +
+  labs(x='dIF', y='-Log10 ( Isoform Switch Q Value )') +
+  theme_bw()
+
+### Switch vs Gene changes:
+ggplot(data=mySwitchList3$isoformFeatures, aes(x=gene_log2_fold_change, y=dIF)) +
+  geom_point(
+    aes( color=abs(dIF) > 0.1 & isoform_switch_q_value < 0.05 ), # default cutoff
+    size=1
+  ) +
+  facet_wrap(~ condition_1) +
+  #facet_grid(condition_1 ~ condition_2) + # alternative to facet_wrap if you have overlapping conditions
+  geom_hline(yintercept = 0, col = "blue", lty = 2, lwd = 1) +
+  geom_vline(xintercept = 0, col = "blue", lty = 2, lwd = 1) +
+  scale_color_manual('Signficant\nIsoform Switch', values = c('black','red')) +
+  labs(x='Gene log2 fold change', y='dIF') +
+  theme_bw()
